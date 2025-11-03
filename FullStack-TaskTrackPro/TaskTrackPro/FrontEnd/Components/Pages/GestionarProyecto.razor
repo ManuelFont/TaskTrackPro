@@ -1,0 +1,219 @@
+@page "/gestionar-proyecto/{nombreProyecto}";
+@using Dtos;
+@using Servicios;
+@inject ServicioProyecto ProyectoServicio;
+@inject ServicioUsuario UsuarioService;
+@inject NavigationManager NavigationManager;
+
+<div class="d-flex flex-column vh-100 p-3">
+    <div class="flex-fill border mb-3">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>Nombre Tarea</th>
+                @for (int col = 0; col < cantidadColumnas; col++)
+                {
+                    <th>Dia @(col + 1)</th>
+                }
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var tarea in tareas)
+            {
+                <tr>
+                    <td>@tarea.Titulo</td>
+                    @for (int col = 0; col < cantidadColumnas; col++)
+                    {
+                        <td>
+                            @if (TareaEnProgreso(tarea, col))
+                            {
+                                <span class="gantt-cell gantt-activa"></span>
+                            }
+                            else
+                            {
+                                <span class="gantt-cell gantt-inactiva"></span>
+                            }
+                        </td>
+                    }
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="d-flex">
+        <div class="card me-3" style="width: 300px;">
+            <div class="card-body">
+                <h5 class="card-title">Información del Proyecto</h5>
+                <p><strong>Nombre:</strong> @proyecto.NombreProyecto</p>
+                <p><strong>Descripción:</strong><br />@proyecto.DescripcionProyecto</p>
+                <p><strong>Fecha inicio:</strong> @proyecto.FechaInicio.ToString("dd/MM/yyyy")</p>
+
+                <h6>Miembros</h6>
+                <ul class="list-unstyled">
+                    @foreach (var m in proyecto.MiembrosProyecto)
+                    {
+                        <li>@m.Nombre (@m.Email)</li>
+                    }
+                </ul>
+                
+                @if (UsuarioService.UsuarioActivoEsAdminProyecto())
+                {
+                    <button class="btn btn-sm btn-primary mt-2"
+                            @onclick='() => NavigationManager.NavigateTo($"/añadir-miembro-proyecto/{nombreProyecto}")'>
+                        Añadir Miembros
+                    </button>
+                    <button class="btn btn-sm btn-primary mt-2"
+                            @onclick='() => NavigationManager.NavigateTo($"/recursos-proyecto/{nombreProyecto}")'>
+                        Añadir Recursos Proyecto
+                    </button>
+                }
+            </div>
+        </div>
+        
+        <div class="card flex-fill">
+            <div class="card-body">
+                <h5 class="card-title">Panel de Estado</h5>
+                @if (!caminosCriticos.Any())
+                {
+                    <div class="alert alert-warning">No hay camino crítico.</div>
+                }
+                else
+                {
+                    <p><strong>Fecha estimada de finalización:</strong> @fechaFinProyecto</p>
+                    <h6>Camino Critico:</h6>
+                    @foreach (var camino in caminosCriticos)
+                    {
+                        <p>
+                            @foreach (var tarea in camino)
+                            {
+                                <span class="badge bg-warning text-dark me-1">
+                                    @tarea.Titulo
+                                </span>
+                                @if (tarea != camino.Last())
+                                {
+                                    <span>→</span>
+                                }
+                            }
+                        </p>
+                    }
+                    <h6>Tareas no críticas</h6>
+                    <ul>
+                        @foreach (var tarea in tareas.Where(t => t.Holgura > 0))
+                        {
+                            <li>
+                                @if (tarea.Realizada)
+                                {
+                                    <span>@tarea.Titulo - Holgura: @tarea.Holgura días (Realizada)</span>
+                                }
+                                else
+                                {
+                                    <span>@tarea.Titulo - Holgura: @tarea.Holgura días</span>
+                                }
+                                <button class="btn btn-sm btn-outline-info ms-2"
+                                        @onclick="() => MostrarInformacion(tarea)">
+                                    Ver información
+                                </button>
+
+                                @if (UsuarioService.UsuarioActivoEsAdminProyecto() || UsuarioService.UsuarioActivoEsLiderProyecto())
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary ms-1"
+                                            @onclick='() => NavigationManager.NavigateTo($"/editar-tarea/{nombreProyecto}/{tarea.Titulo}")'>
+                                        Editar
+                                    </button>
+                                }
+                            </li>
+                        }
+                    </ul>
+
+
+                    @if (tareaSeleccionada != null)
+                    {
+                        <div class="alert alert-info mt-3">
+                            La tarea <strong>@tareaSeleccionada.Titulo</strong> puede demorarse <strong>@tareaSeleccionada.Holgura</strong> días sin afectar la fecha final del proyecto.
+                            <h6>Informacion</h6>
+                            <p>Descripcion: @tareaSeleccionada.Descripcion</p>
+                            <p>Fecha Inicio Temprano: @tareaSeleccionada.FechaInicioTemprano.ToString("dd/MM/yyyy")</p>
+                            <p>Fecha Fin Temprano: @tareaSeleccionada.FechaFinTemprano.ToString("dd/MM/yyyy")</p>
+                            <h6>Recursos</h6>
+                            <ul>
+                                @foreach (var recurso in recursosTareSeleccionada)
+                                {
+                                    <li>@recurso.Nombre / @recurso.Tipo / @recurso.Descripcion</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                }
+                <button class="btn btn-sm btn-primary mt-2"
+                        @onclick='() => NavigationManager.NavigateTo($"/crear-tarea/{nombreProyecto}")'>
+                    Crear Tarea
+                </button>
+                <button class="btn btn-sm btn-secondary mt-2 ms-2"
+                        @onclick='() => NavigationManager.NavigateTo($"/asignar-recurso-tarea/{nombreProyecto}")'>
+                    Asignar Recurso a Tarea
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .gantt-cell {
+        width: 20px;
+        height: 20px;
+        border-radius: 3px;
+        display: inline-block;
+    }
+
+    .gantt-activa {
+        background-color: #4caf50; 
+    }
+
+    .gantt-inactiva {
+        background-color: #e0e0e0; 
+    }
+</style>
+
+@code {
+    [Parameter] public string nombreProyecto { get; set; } = "";
+    DateTime fechaFinProyecto;
+    private List<TareaDto> tareas = new List<TareaDto>();
+    private List<List<TareaDto>> caminosCriticos = new();
+    private TareaDto? tareaSeleccionada;
+    private List<RecursoDto> recursosTareSeleccionada = new List<RecursoDto>();
+        
+    private ProyectoDto proyecto;
+
+    private int cantidadColumnas = 1;
+        
+
+    protected override void OnInitialized()
+    {
+        proyecto = ProyectoServicio.TraerProyectoPorNombre(nombreProyecto);
+
+        tareas = ProyectoServicio.TraerTareasDeProyecto(nombreProyecto);
+        if (tareas.Any())
+        {
+            caminosCriticos = ProyectoServicio
+                .CaminoCritico(nombreProyecto)
+                .ToList();
+        }
+        fechaFinProyecto = ProyectoServicio.TraerFechaFinProyecto(nombreProyecto);
+
+        cantidadColumnas = (proyecto.FechaFin - proyecto.FechaInicio).Days + 1;
+    }
+    
+    private void MostrarInformacion(TareaDto tarea)
+    {
+        tareaSeleccionada = tarea;
+        recursosTareSeleccionada = tareaSeleccionada.Recursos;
+    }
+
+    private bool TareaEnProgreso(TareaDto tarea, int dia)
+    {
+        int primerDia = (tarea.FechaInicioTemprano - proyecto.FechaInicio).Days;
+        int ultimoDia = (tarea.FechaFinTemprano - proyecto.FechaInicio).Days;
+        return dia >= primerDia && dia <= ultimoDia;
+    }
+}

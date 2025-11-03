@@ -1,0 +1,50 @@
+﻿@inherits LayoutComponentBase
+@using Servicios
+@inject ServicioUsuario UsuarioService
+@inject NavigationManager NavigationManager
+
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+    <div class="container-fluid">
+        <NavLink class="navbar-brand fw-bold" href="/menu">
+            TaskTrackPro
+        </NavLink>
+
+        <div class="flex-grow-1"></div>
+        
+        @if (UsuarioService.UsuarioLogueado != null && !IsLoginPage)
+        {
+            <button class="btn btn-sm btn-outline-primary me-2" @onclick="IrAMisTareas">
+                Mis Tareas
+            </button>
+            <button class="btn btn-sm btn-outline-warning" @onclick="ReiniciarPassword">
+                Cambiar contraseña
+            </button>
+            <button class="btn btn-sm btn-outline-danger" @onclick="Logout">
+                Cerrar sesión
+            </button>
+        }
+    </div>
+</nav>
+
+<div class="container-fluid p-0">
+    @Body
+</div>
+
+@code {
+    bool IsLoginPage =>
+        string.IsNullOrEmpty(NavigationManager.ToBaseRelativePath(NavigationManager.Uri));
+
+    void Logout()
+    {
+        UsuarioService.Limpiar();
+        NavigationManager.NavigateTo("/");
+    }
+    void ReiniciarPassword()
+    {
+        NavigationManager.NavigateTo("/reiniciar-password");
+    }
+    void IrAMisTareas()
+    {
+        NavigationManager.NavigateTo("/mis-tareas");
+    }
+}

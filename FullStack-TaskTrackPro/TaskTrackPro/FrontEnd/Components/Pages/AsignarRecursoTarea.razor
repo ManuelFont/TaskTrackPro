@@ -1,0 +1,203 @@
+@page "/asignar-recurso-tarea/{nombreProyecto}"
+@using Dtos
+@using Servicios
+@inject ServicioProyecto ProyectoServicio
+@inject ServicioRecurso ServicioRecurso
+@inject ServicioUsuario ServicioUser
+@inject NavigationManager NavigationManager
+
+<h3>Asignar Recurso a Tarea</h3>
+
+@if (!string.IsNullOrEmpty(mensaje))
+{
+    <div class="alert @(exito ? "alert-success" : "alert-danger")">@mensaje</div>
+}
+
+<div class="mb-3">
+    <label class="form-label">Tarea</label>
+    <select class="form-select" @bind="tareaSeleccionadaTitulo">
+        <option disabled selected value="">-- Seleccione una tarea --</option>
+        @foreach (var t in tareas)
+        {
+            <option value="@t.Titulo">@t.Titulo</option>
+        }
+    </select>
+</div>
+<div class="mb-3">
+    <label class="form-label">Recurso</label>
+    <select class="form-select" @bind="recursoSeleccionadoId">
+        <option disabled selected value="0">-- Seleccione un recurso --</option>
+        @foreach (var r in recursos)
+        {
+            <option value="@r.Id">
+                @r.Nombre - Uso: @r.Usos/@r.Capacidad @(r.Usos >= r.Capacidad ? " (Capacidad máxima)" : "")
+            </option>
+
+        }
+
+    </select>
+</div>
+
+<div class="mb-3">
+    <label class="form-label">Fecha de asignación</label>
+    <InputDate class="form-control" @bind-Value="fecha_asignacion"/>
+
+</div>
+
+<div class="mb-3">
+    <label class="form-label">Duración (días)</label>
+    <InputNumber class="form-control" @bind-Value="duracion"/>
+
+</div>
+
+<button class="btn btn-primary" @onclick="Asignar">Asignar Recurso</button>
+
+
+@if (mostrarOpcionesConflicto && esAdminProyecto)
+{
+    
+    <div class="alert alert-warning" role="alert">
+        ⚠️ Advertencia: Está forzando la asignación de un recurso que ya alcanzó su capacidad máxima. Las opciones Redistribuir Recursos/ ForzarAsignacion puede afectar otras tareas programadas.
+    </div>
+
+    if (hayEquivalentes)
+    {
+        <button class="btn btn-warning" @onclick="RedistribuirRecursos">Redistribuir Recursos</button>
+        <button class="btn btn-danger" @onclick="ForzarAsignacion">Forzar Asignación</button>
+    }
+    else
+    {
+        <button class="btn btn-secondary" @onclick="ReprogramarTarea">Reprogramar Tarea</button>
+
+    }
+}
+
+@code {
+
+    [Parameter] public string nombreProyecto { get; set; }
+    private int duracion;
+    DateTime fecha_asignacion;
+    private List<TareaDto> tareas = new();
+    private List<RecursoDto> recursos = new();
+    private bool mostrarOpcionesConflicto = false;
+    private bool hayEquivalentes = false;
+    private bool intentoFallidoAsignacion = false;
+    private bool esAdminProyecto;
+    private int recursoSeleccionadoId = 0;
+    private string tareaSeleccionadaTitulo;
+    private DateTime fechaInicioProyecto;
+
+    private string mensaje = "";
+    private bool exito = false;
+
+
+
+    protected override void OnInitialized()
+    {
+        var proyecto = ProyectoServicio.TraerProyectoPorNombre(nombreProyecto);
+        fechaInicioProyecto = proyecto.FechaInicio;
+        fecha_asignacion = DateTime.Today.AddDays(1);
+        duracion = 1;
+
+        tareas = ProyectoServicio.TraerTareasDeProyecto(nombreProyecto);
+        esAdminProyecto = ServicioUser.UsuarioActivoEsAdminProyecto();
+        CargarRecursos();
+        
+    }
+    
+
+    private async Task Asignar()
+    {
+        try
+        {
+            mensaje = "";
+            exito = false;
+            mostrarOpcionesConflicto = false;
+
+            if (fecha_asignacion < fechaInicioProyecto)
+            {
+                mensaje = $"La fecha de asignación no puede ser anterior al inicio del proyecto ({fechaInicioProyecto:dd/MM/yyyy}).";
+                return;
+            }
+
+            if (recursoSeleccionadoId == 0)
+            {
+                mensaje = "Debe seleccionar un recurso.";
+                return;
+            }
+
+            var recursoDisponible = ServicioRecurso.RecursoDisponible(recursoSeleccionadoId, fecha_asignacion, duracion);
+            if (!recursoDisponible)
+            {
+                mensaje = "El recurso no está disponible para esa fecha y duración.";
+                mostrarOpcionesConflicto = true;
+                hayEquivalentes = ServicioRecurso.HayEquivalentesDisponibles(recursoSeleccionadoId, fecha_asignacion, duracion);
+                return;
+            }
+            
+            ServicioRecurso.AsignarRecursoATarea(nombreProyecto, tareaSeleccionadaTitulo, recursoSeleccionadoId, duracion, fecha_asignacion);
+
+            mensaje = "Asignación procesada.";
+            exito = true;
+            mostrarOpcionesConflicto = false;
+
+        }
+        catch (Exception ex)
+        {
+            mensaje = ex.Message;
+            mostrarOpcionesConflicto = false;
+        }
+
+        CargarRecursos();
+    }
+
+
+    private void RedistribuirRecursos()
+    {
+        ServicioRecurso.RedistribuirRecursoEquivalente(nombreProyecto, tareaSeleccionadaTitulo, recursoSeleccionadoId, duracion, fecha_asignacion);
+        mensaje = "Recurso equivalente asignado.";
+        exito = true;
+        mostrarOpcionesConflicto = false;
+        
+        CargarRecursos();
+    }
+
+    private void ReprogramarTarea()
+    {
+        ServicioRecurso.ReprogramarTareaPorConflicto(nombreProyecto, tareaSeleccionadaTitulo, recursoSeleccionadoId, duracion, fecha_asignacion);
+        mensaje = "La tarea fue reprogramada debido a la indisponibilidad del recurso.";
+        exito = true;
+        mostrarOpcionesConflicto = false;
+        
+        CargarRecursos();
+    }
+
+    private void CargarRecursos()
+    {
+        recursos = ServicioRecurso.TraerRecursosDelProyecto(nombreProyecto);
+    }
+    
+    private void ForzarAsignacion()
+    {
+        try
+        {
+            ServicioRecurso.AsignarRecursoIgnorandoDisponibilidad(nombreProyecto, tareaSeleccionadaTitulo, recursoSeleccionadoId, duracion, fecha_asignacion);
+            mensaje = "Asignación forzada realizada. Se notificó al administrador.";
+            exito = true;
+            mostrarOpcionesConflicto = false;
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"Error al forzar la asignación: {ex.Message}";
+            exito = false;
+        }
+
+        CargarRecursos();
+    }
+
+
+
+
+
+
+}

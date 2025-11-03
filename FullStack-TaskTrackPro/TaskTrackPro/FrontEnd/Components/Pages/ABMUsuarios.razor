@@ -1,0 +1,170 @@
+@page "/abm-usuarios"
+@using Dtos
+@using Servicios
+@inject ServicioUsuario UsuarioService
+@inject NavigationManager NavigationManager 
+
+<h3>ABM de Usuarios</h3>
+
+@if (!string.IsNullOrEmpty(_errorCrear))
+{
+    <div class="alert alert-danger">@_errorCrear</div>
+}
+
+@if (mostrarMensajeExitoso)
+{
+    <div class="alert alert-success">
+        ¡Se ha creado el usuario con éxito!
+    </div>
+}
+
+<div class="row">
+    <div class="col-6">
+        <h4>Usuarios Existentes</h4>
+
+        @if (_todosLosUsuarios == null)
+        {
+            <p><em>Cargando…</em></p>
+        }
+        else if (!_todosLosUsuarios.Any())
+        {
+            <p>No hay usuarios.</p>
+        }
+        else
+        {
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Apellido</th>
+                        <th>Email</th>
+                        <th style="width:120px">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var u in _todosLosUsuarios)
+                    {
+                        <tr class="@GetRowClass(u)">
+                            <td>@u.Nombre</td>
+                            <td>@u.Apellido</td>
+                            <td>@u.Email</td>
+                            <td>
+                                <button class="btn btn-sm btn-secondary"
+                                        @onclick="() => ManageUser(u)">
+                                    Gestionar
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+    
+    <div class="col-6">
+        <h4>Crear Nuevo Usuario</h4>
+        <EditForm Model="_nuevoUsuarioDto" OnValidSubmit="CrearUsuario">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label class="form-label">Nombre</label>
+                <InputText class="form-control"
+                           @bind-Value="_nuevoUsuarioDto.Nombre" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Apellido</label>
+                <InputText class="form-control"
+                           @bind-Value="_nuevoUsuarioDto.Apellido" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <InputText type="email" class="form-control"
+                           @bind-Value="_nuevoUsuarioDto.Email" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Fecha de Nacimiento</label>
+                <InputDate class="form-control"
+                           @bind-Value="_nuevoUsuarioDto.FechaNacimiento" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Contraseña</label>
+                <InputText type="password" class="form-control"
+                           @bind-Value="_nuevoUsuarioDto.Password" />
+            </div>
+
+            <div class="mb-3">
+                <label for="rol" class="form-label">Rol</label>
+                <InputSelect id="rol"
+                             class="form-select"
+                             @bind-Value="_nuevoUsuarioDto.RolId"
+                             TValue="int?">
+                    <option value="" disabled selected>-- Seleccione un rol --</option>
+                    <option value="1">Administrador Sistema</option>
+                    <option value="2">Administrador Proyecto</option>
+                    <option value="3">Miembro Proyecto</option>
+                    <option value="4">Lider Proyecto</option>
+
+                </InputSelect>
+                <ValidationMessage For="@(() => _nuevoUsuarioDto.RolId)" />
+            </div>
+
+            <button type="submit" class="btn btn-primary">Crear Usuario</button>
+        </EditForm>
+    </div>
+</div>
+
+
+@code {
+   
+    private CrearUsuarioDto _nuevoUsuarioDto = new();
+    private string _errorCrear = "";
+    private bool mostrarMensajeExitoso;
+    private List<UsuarioDto>? _todosLosUsuarios;
+    
+    private UsuarioDto? _seleccionadoDto;
+
+    protected override void OnInitialized()
+    {
+        _todosLosUsuarios = UsuarioService.TraerTodosLosUsuarios();
+        _nuevoUsuarioDto.FechaNacimiento = new DateTime(2000, 1, 1);
+    }
+
+    private void CrearUsuario()
+    {
+        _errorCrear = "";
+        mostrarMensajeExitoso = false;
+
+        try
+        {
+            UsuarioService.CrearUsuario(_nuevoUsuarioDto);
+            _todosLosUsuarios = UsuarioService.TraerTodosLosUsuarios();
+            _nuevoUsuarioDto = new CrearUsuarioDto();
+            mostrarMensajeExitoso = true;
+            NavigationManager.NavigateTo("/menu");
+        }
+        catch (ArgumentException ex)
+        {
+            _errorCrear = ex.Message;
+        }
+    }
+
+    private void ManageUser(UsuarioDto u)
+    {
+        UsuarioService.SetUsuarioAGestionar(u);
+        NavigationManager.NavigateTo("/gestion-usuario");
+    }
+
+    private string GetRowClass(UsuarioDto u)
+        => u == _seleccionadoDto ? "table-active" : "";
+
+}
+
+
+
+
+

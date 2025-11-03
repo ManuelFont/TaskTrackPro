@@ -1,0 +1,50 @@
+@page "/panel-recursos"
+@using Dtos
+@using Servicios
+@inject ServicioRecurso ServicioRecurso
+@inject ServicioUsuario ServicioUsuario
+
+<h3>Panel de Recursos en el Proyecto</h3>
+
+@if (!ServicioUsuario.UsuarioActivoEsAdminProyecto() && !ServicioUsuario.UsuarioActivoEsAdminSistema())
+{
+    <div class="alert alert-danger">No tiene permiso para acceder a este panel.</div>
+}
+else
+{
+    @foreach (var recurso in recursos)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">@recurso.Nombre (@recurso.Funcionalidad)</h5>
+                <p class="card-text"><strong>Proyecto:</strong> @recurso.ProyectoNombre</p>
+                <p class="card-text"><strong>Capacidad:</strong> @recurso.Capacidad</p>
+                <p class="card-text"><strong>Usos actuales:</strong> @recurso.Usos</p>
+
+                @if (recurso.FechasDeUso != null && recurso.FechasDeUso.Any())
+                {
+                    <p class="card-text"><strong>Fechas de uso:</strong></p>
+                    <ul>
+                        @foreach (var rango in recurso.FechasDeUso)
+                        {
+                            <li>@rango.Desde.ToShortDateString() - @rango.Hasta.ToShortDateString()</li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="card-text"><em>No hay fechas asignadas aún.</em></p>
+                }
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<RecursoDto> recursos = new();
+
+    protected override void OnInitialized()
+    {
+        recursos = ServicioRecurso.TraerTodosLosRecursosDelSistema();
+    }
+}

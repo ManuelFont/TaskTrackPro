@@ -1,0 +1,79 @@
+@page "/"
+@using Dtos
+@using Servicios
+@inject ServicioUsuario ServicioUsuario;
+@inject ServicioInicioDeSesion ServicioInicioDeSesion;
+@inject NavigationManager NavigationManager;
+
+<div class="container mt-5" style="max-width: 450px;">
+    <div class="card shadow rounded-4 p-4">
+        <h2 class="text-center mb-4">Iniciar Sesión</h2>
+
+        <form @onsubmit="HandleLogin">
+            <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" id="email" name="email" required @bind="user.Email" class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">Contraseña</label>
+                <input type="password" id="password" name="password" required @bind="user.Password" class="form-control" />
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Ingresar</button>
+        </form>
+
+        @if (mostrarMensajeExitoso)
+        {
+            <div class="alert alert-success mt-4 text-center" role="alert">
+                ¡Te has logueado con éxito! Redireccionando al menú de inicio...
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger mt-4 text-center" role="alert">
+                @mensajeError
+            </div>
+        }
+    </div>
+</div>
+@code
+{
+    LoginDto user;
+    private string mensajeError;
+    private bool mostrarMensajeExitoso = false;
+
+    protected override void OnInitialized()
+    {
+         user = new LoginDto();
+    }
+
+    private async Task HandleLogin()
+    {
+        try
+        {
+            bool loginExitoso = ServicioInicioDeSesion.Login(user);
+
+            if (loginExitoso)
+            {
+                ServicioUsuario.SetUsuario(user);
+                mostrarMensajeExitoso = true;
+                mensajeError = string.Empty;
+                await Task.Delay(2000);
+                NavigationManager.NavigateTo("/menu");
+            }
+            else
+            {
+                throw new Exception("Credenciales incorrectas.");
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = ex.Message;
+            mostrarMensajeExitoso = false;
+        }
+    }
+}
+
+

@@ -1,0 +1,210 @@
+@page "/gestion-usuario"
+@using Dtos
+@using Servicios
+@inject ServicioUsuario UsuarioService
+@inject NavigationManager NavigationManager
+
+<h3>Gestión de Usuario</h3>
+
+@if (_usuarioDto == null)
+{
+    <p><em>Cargando datos…</em></p>
+}
+else
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Info de usuario</h5>
+            <p><strong>Nombre:</strong> @_usuarioDto.Nombre</p>
+            <p><strong>Email:</strong> @_usuarioDto.Email</p>
+
+            <h6>Roles actuales</h6>
+            <ul>
+                @foreach (var rol in _rolesUsuario)
+                {
+                    <li>@rol.Nombre</li>
+                }
+            </ul>
+
+            <h6>Contraseña</h6>
+            <button class="btn btn-warning me-2"
+                    @onclick="OnReiniciarContrasena">
+                Reiniciar Contraseña
+            </button>
+            <button class="btn btn-secondary"
+                    @onclick="OnAutogenerarContrasena">
+                Autogenerar Contraseña
+            </button>
+
+            @if (!string.IsNullOrEmpty(_passwordMessage))
+            {
+                <div class="alert alert-success mt-2">
+                    @_passwordMessage
+                </div>
+            }
+            <hr/>
+
+            <h6>Modificar Rol</h6>
+
+            @if (_rolesUsuario.Any(r => r.Id == 1))
+            {
+                <p class="text-muted">
+                    Este usuario es un Administrador de Sistema y no se puede cambiar su rol.
+                </p>
+            }
+            else
+            {
+                <div class="mb-3">
+                    <label class="form-label">Nuevo Rol</label>
+                    <InputSelect class="form-select"
+                                 @bind-Value="_nuevoRolId"
+                                 TValue="int?">
+                        <option value="">-- Seleccione un rol --</option>
+                        @foreach (var r in _rolesDisponibles)
+                        {
+                            <option value="@r.Id">@r.Nombre</option>
+                        }
+                    </InputSelect>
+                </div>
+                <button class="btn btn-primary"
+                        @onclick="OnCambiarRol">
+                    Agregar Rol 
+                </button>
+                @if (!string.IsNullOrEmpty(_errorRol))
+                {
+                    <div class="text-danger mt-2">@_errorRol</div>
+                }
+                @if (_rolCambiado)
+                {
+                    <div class="text-success mt-2">
+                        Rol actualizado correctamente.
+                    </div>
+                }
+            }
+    <br/> <br/>
+            <h6>Dar de baja</h6>
+
+            @if (_rolesUsuario.Any(r => r.Id == 1))
+            {
+                <div class="text-warning">
+                    No se puede dar de baja a un Administrador de Sistema.
+                </div>
+            }
+            else
+            {
+                <button class="btn btn-danger"
+                        @onclick="OnDarDeBajaUsuario">
+                    Dar de baja
+                </button>
+            }
+
+            @if (_bajaExito)
+            {
+                <div class="alert alert-success mt-2">
+                    Usuario dado de baja correctamente.
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(_bajaError))
+            {
+                <div class="alert alert-danger mt-2">
+                    @_bajaError
+                </div>
+            }
+        </div>
+        
+    </div>
+    
+    <hr />
+
+    
+}
+
+@code {
+    private UsuarioDto _usuarioGestionando;
+    private UsuarioDto? _usuarioDto;
+    private List<RolDto> _rolesUsuario = new();
+    private List<RolDto> _rolesDisponibles = new();
+    private int? _nuevoRolId;
+    private string _errorRol = "";
+    private bool _rolCambiado = false;
+    private string _passwordMessage = "";
+
+    private bool _contrasenaReiniciada = false;
+    
+    protected override void OnInitialized()
+    {
+        _usuarioGestionando = UsuarioService.UsuarioGestionado;
+        UsuarioDto u = UsuarioService.TraerUsuarioPorEmail(_usuarioGestionando.Email);
+
+        _usuarioDto = new UsuarioDto {
+            Nombre   = u.Nombre,
+            Apellido = u.Apellido,
+            Email    = u.Email
+        };
+
+        _rolesUsuario      = UsuarioService.ListarRolesUsuarioGestionado();
+        _rolesDisponibles  = UsuarioService.ListarRolesDisponiblesParaGestionado();
+    }
+
+    private void OnReiniciarContrasena()
+    {
+        UsuarioService.ReiniciarContrasena(_usuarioGestionando.Email);
+        _contrasenaReiniciada = true;
+        _passwordMessage = "Contraseña reiniciada correctamente";
+
+    }
+
+    private void OnAutogenerarContrasena()
+    {
+        UsuarioService.AutogenerarContrasena(_usuarioGestionando.Email);
+        _passwordMessage = "Contraseña autogenerada correctamente:";
+
+    }
+
+    private void OnCambiarRol()
+    {
+        _errorRol    = "";
+        _rolCambiado = false;
+
+        if (_nuevoRolId == null)
+        {
+            _errorRol = "Debes seleccionar un nuevo rol.";
+            return;
+        }
+
+        try
+        {
+            int nuevoRol = _nuevoRolId.Value;
+            UsuarioService.CambiarRolUsuario(_usuarioGestionando.Email, nuevoRol);
+
+            _rolesUsuario     = UsuarioService.ListarRolesUsuarioGestionado();
+            _rolesDisponibles = UsuarioService.ListarRolesDisponiblesParaGestionado();
+            _rolCambiado      = true;
+        }
+        catch (Exception ex)
+        {
+            _errorRol = ex.Message;
+        }
+    }
+    private bool _bajaExito = false;
+    private string _bajaError = "";
+
+    private async Task OnDarDeBajaUsuario()
+    {
+        _bajaError = "";
+        _bajaExito = false;
+
+        try
+        {
+            UsuarioService.EliminarUsuario(_usuarioGestionando.Email);
+            _bajaExito = true;
+            await Task.Delay(2000);
+
+            NavigationManager.NavigateTo("/abm-usuarios");
+        }
+        catch (ArgumentException ex)
+        {
+            _bajaError = ex.Message;
+        }
+    }
+}

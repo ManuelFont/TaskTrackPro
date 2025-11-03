@@ -1,0 +1,79 @@
+@page "/recursos"
+@rendermode InteractiveServer
+@using Dtos
+@using Servicios
+@inject ServicioProyecto ProyectoServicio
+@inject ServicioRecurso RecursoServicio
+@inject NavigationManager NavigationManager
+
+<h3>Recursos del Sistema</h3>
+<ul>
+    @foreach (var recurso in _recursos)
+    {
+        <li>
+            <p>Nombre: @recurso.Nombre Tipo: @recurso.Tipo Descripcion: @recurso.Descripcion</p>
+        </li>
+    }
+</ul>
+<h6>Crear Nuevo Recurso</h6>
+<EditForm Model="_nuevoRecurso" OnValidSubmit="CrearRecurso">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="mb-3">
+        <label class="form-label">Nombre</label>
+        <InputText class="form-control" @bind-Value="_nuevoRecurso.Nombre" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Tipo</label>
+        <InputText class="form-control" @bind-Value="_nuevoRecurso.Tipo" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Descripcion</label>
+        <InputText min="1" class="form-control" @bind-Value="_nuevoRecurso.Descripcion" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Funcionalidad</label>
+        <InputText min="1" class="form-control" @bind-Value="_nuevoRecurso.Funcionalidad" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Capacidad</label>
+        <InputNumber class="form-control" @bind-Value="_nuevoRecurso.Capacidad" />
+    </div>
+
+    <button  type="submit" class="btn btn-sm btn-primary mt-2">
+        Crear Recurso
+    </button>
+    @if (!string.IsNullOrEmpty(mensajeError))
+    {
+        <div class="alert alert-danger">@mensajeError</div>
+    }
+</EditForm>
+@if (!string.IsNullOrEmpty(mensajeError))
+{
+    <div class="alert alert-danger">@mensajeError</div>
+}
+
+@code {
+    private IEnumerable<RecursoDto> _recursos = new List<RecursoDto>();
+    private RecursoDto _nuevoRecurso = new RecursoDto();
+    private string mensajeError = "";
+    
+    protected override void OnInitialized()
+    {
+        _recursos = RecursoServicio.TraerTodo();
+    }
+    
+    private async Task CrearRecurso()
+    {
+        try
+        {
+            RecursoServicio.Agregar(_nuevoRecurso);
+            NavigationManager.NavigateTo("/menu");
+        }
+        catch (ApplicationException ex)
+        {
+            mensajeError = ex.Message;
+        }
+    }
+
+}

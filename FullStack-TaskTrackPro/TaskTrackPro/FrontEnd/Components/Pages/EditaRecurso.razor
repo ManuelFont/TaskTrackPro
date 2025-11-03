@@ -1,0 +1,64 @@
+@page "/editar-recurso/{id:int}"
+@using Dtos
+@using Servicios
+@inject ServicioRecurso ServicioRecurso
+@inject NavigationManager NavigationManager
+
+<h3>Editar Recurso</h3>
+
+@if (_recurso != null)
+{
+    <EditForm Model="_recurso" OnValidSubmit="GuardarCambios">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label>Nombre:</label>
+            <InputText @bind-Value="_recurso.Nombre" class="form-control" />
+        </div>
+
+        <div class="mb-3">
+            <label>Descripción:</label>
+            <InputText @bind-Value="_recurso.Descripcion" class="form-control" />
+        </div>
+
+        <div class="mb-3">
+            <label>Funcionalidad:</label>
+            <InputText @bind-Value="_recurso.Funcionalidad" class="form-control" />
+        </div>
+
+        <div class="mb-3">
+            <label>Capacidad:</label>
+            <InputNumber @bind-Value="_recurso.Capacidad" class="form-control" />
+        </div>
+
+        <button class="btn btn-success">Guardar</button>
+        <button type="button" class="btn btn-secondary ms-2" @onclick="Volver">Cancelar</button>
+    </EditForm>
+}
+else
+{
+    <p>Cargando recurso...</p>
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+
+    private RecursoDto? _recurso;
+
+    protected override void OnInitialized()
+    {
+        _recurso = ServicioRecurso.TraerPorId(id);
+    }
+
+    private void GuardarCambios()
+    {
+        ServicioRecurso.Actualizar(_recurso);
+        NavigationManager.NavigateTo("/eliminar-recursos");
+    }
+
+    private void Volver()
+    {
+        NavigationManager.NavigateTo("/eliminar-recursos");
+    }
+}

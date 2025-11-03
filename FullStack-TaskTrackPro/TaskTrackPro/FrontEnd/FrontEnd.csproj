@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Backend\Backend.csproj" />
+      <ProjectReference Include="..\Servicios\Servicios.csproj" />
+
+    </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="Components\Pages\AdministradorSistema\CrearAlta.razor" />
+      <_ContentIncludedByDefault Remove="Components\Pages\Proyectos\GestionarProyectos.razor" />
+      <_ContentIncludedByDefault Remove="Components\Pages\Proyectos\MisProyectos.razor" />
+      <_ContentIncludedByDefault Remove="Components\Pages\Proyectos\PanelDeEstado.razor" />
+      <_ContentIncludedByDefault Remove="wwwroot\js\ganttInterop.js" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.5" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.5">
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        <PrivateAssets>all</PrivateAssets>
+      </PackageReference>
+      <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.5" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.5" />
+    </ItemGroup>
+
+</Project>

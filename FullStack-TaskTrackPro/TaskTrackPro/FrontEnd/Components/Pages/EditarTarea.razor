@@ -1,0 +1,112 @@
+@page "/editar-tarea/{nombreProyecto}/{tituloTarea}"
+@using Dtos
+@using Servicios
+@inject ServicioProyecto ProyectoServicio
+@inject NavigationManager NavigationManager
+
+<h3>Editar Tarea</h3>
+
+@if (tareaEditada != null)
+{
+    <div class="mb-3">
+        <label>Nombre</label>
+        <input class="form-control" value="@tareaEditada.Titulo" disabled />
+    </div>
+
+    <div class="mb-3">
+        <label>Descripción</label>
+        <input class="form-control" @bind="tareaEditada.Descripcion" />
+    </div>
+
+    <div class="mb-3">
+        <label>Duración</label>
+        <input class="form-control" type="number" @bind="tareaEditada.Duracion" />
+    </div>
+
+    <h6>Dependencias</h6>
+    @foreach (var nombreTarea in todasLasTareas)
+    {
+        bool esTransitiva = tareaEditada.DependenciasTransitivas.Contains(nombreTarea);
+        <div class="form-check">
+            <input class="form-check-input"
+                   type="checkbox"
+                   id="@nombreTarea"
+                   checked="@tareaEditada.DependenciasNombres.Contains(nombreTarea)"
+                   disabled="@esTransitiva"
+                   @onchange="(e) => ToggleDependencia(nombreTarea, (bool?)e.Value == true)" />
+
+            <label class="form-check-label @(esTransitiva ? "text-muted" : "")" for="@nombreTarea">
+                @nombreTarea
+                @if (esTransitiva)
+                {
+                    <span>(no seleccionable para evitar Dependencia Cíclica)</span>
+                }
+            </label>
+        </div>
+    }
+
+    @if (hayError)
+    {
+        <div class="alert alert-danger mt-3">
+            La descripción no puede estar vacía y la duración debe ser mayor a 0.
+        </div>
+    }
+
+    <button class="btn btn-primary mt-3" @onclick="GuardarCambios">Guardar Cambios</button>
+}
+else
+{
+    <p class="text-danger">Tarea no encontrada.</p>
+}
+
+@code {
+    [Parameter] public string nombreProyecto { get; set; } = "";
+    [Parameter] public string tituloTarea { get; set; } = "";
+
+    private TareaDto? tareaEditada;
+    private List<string> todasLasTareas = new();
+    private bool hayError = false;
+
+    protected override void OnInitialized()
+    {
+        var tareas = ProyectoServicio.TraerTareasDeProyecto(nombreProyecto);
+        tareaEditada = tareas.FirstOrDefault(t => t.Titulo == tituloTarea);
+
+        todasLasTareas = tareas
+            .Where(t => t.Titulo != tituloTarea)
+            .Select(t => t.Titulo)
+            .ToList();
+
+        if (tareaEditada == null)
+        {
+            NavigationManager.NavigateTo($"/gestionar-proyecto/{nombreProyecto}");
+        }
+    }
+
+    private void ToggleDependencia(string nombre, bool agregar)
+    {
+        if (agregar)
+        {
+            if (!tareaEditada.DependenciasNombres.Contains(nombre))
+                tareaEditada.DependenciasNombres.Add(nombre);
+        }
+        else
+        {
+            tareaEditada.DependenciasNombres.Remove(nombre);
+        }
+    }
+
+    private void GuardarCambios()
+    {
+        if (string.IsNullOrWhiteSpace(tareaEditada.Descripcion) || tareaEditada.Duracion <= 0)
+        {
+            hayError = true;
+            return;
+        }
+
+        hayError = false;
+        ProyectoServicio.ActualizarTarea(nombreProyecto, tareaEditada);
+        NavigationManager.NavigateTo($"/gestionar-proyecto/{nombreProyecto}");
+    }
+}
+

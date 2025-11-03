@@ -1,0 +1,44 @@
+@page "/exportar-json"
+@using Servicios
+@inject ServicioProyecto ServiProyecto
+
+<h1>Exportacion Json</h1>
+<div class="mb-3">
+    <label>Direccion:</label>
+    <input class="form-control" type="text" @bind="_direccion" placeholder="Ej: C:/Usuarios/Juan/Documentos"/>
+</div>
+<div class="mb-3">
+    <label>Nombre Archivo:</label>
+    <input class="form-control" type="text" @bind="_nombreArchivo" placeholder="Ej: MiProyecto"/>
+</div>
+<button class="btn btn-primary" @onclick="CrearArchivo">Crear Archivo</button>
+
+@if (_exito)
+{
+    <div class="alert alert-success mt-4 text-center" role="alert">Creado con exito!</div>
+}
+else if(!String.IsNullOrWhiteSpace(_error))
+{
+    <div class="alert alert-danger mt-4 text-center" role="alert">@_error</div>
+}
+
+@code {
+    private string _direccion = "";
+    private string _nombreArchivo = "";
+    private string _error = "";
+    private bool _exito = false;
+    
+    private void CrearArchivo()
+    {
+        try
+        {
+            _exito = true;
+            ServiProyecto.CrearArchivoJson(_direccion, _nombreArchivo);
+        }
+        catch (Exception e)
+        {
+            _exito = false;
+            _error = "No se pudo crear el archivo: " + e;
+        }
+    }
+}

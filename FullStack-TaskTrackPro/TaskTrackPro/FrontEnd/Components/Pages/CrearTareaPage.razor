@@ -1,0 +1,83 @@
+@page "/crear-tarea/{nombreProyecto}"
+@rendermode InteractiveServer
+@using Dtos
+@using Servicios
+@inject ServicioProyecto ProyectoServicio
+@inject NavigationManager NavigationManager
+
+<h3>Crear Tarea</h3>
+
+<EditForm Model="nuevaTarea" OnValidSubmit="CrearTarea">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="mb-3">
+        <label class="form-label">Nombre</label>
+        <InputText class="form-control" @bind-Value="nuevaTarea.Titulo" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Descripcion</label>
+        <InputText class="form-control" @bind-Value="nuevaTarea.Descripcion" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Duracion</label>
+        <InputNumber min="1" class="form-control" @bind-Value="nuevaTarea.Duracion" />
+    </div>
+    <h6>Seleccione Dependencias</h6>
+    <ul>
+        @foreach (var tarea in tareas)
+        {
+            <li>
+                <input type="checkbox" @bind="tarea.Seleccionada" />
+                <input type="text" readonly @bind="tarea.Titulo" />
+            </li>
+        }
+    </ul>
+  
+    <button  type="submit" class="btn btn-sm btn-primary mt-2">
+        Crear Tarea
+    </button>
+    @if (!string.IsNullOrEmpty(mensajeError))
+    {
+        <div class="alert alert-danger">@mensajeError</div>
+    }
+</EditForm>
+
+@code {
+    [Parameter] 
+    public string nombreProyecto { get; set; } = "";
+    
+    private TareaDto nuevaTarea = new TareaDto();
+    private string mensajeError = "";
+    private List<TareaDto> tareas = new List<TareaDto>();
+    private List<RecursoDto> recursos;
+    private bool[] tareasSeleccionadas;
+    
+    protected override void OnInitialized()
+    { 
+        tareas = ProyectoServicio.TraerTareasDeProyecto(nombreProyecto);
+    }
+
+    private async Task CrearTarea()
+    {
+        try
+        {
+            foreach (TareaDto tarea in tareas)
+            {
+                if (tarea.Seleccionada)
+                {
+                    nuevaTarea.DependenciasNombres.Add(tarea.Titulo);
+                }
+                tarea.Seleccionada = false;
+            }
+          
+            ProyectoServicio.CrearYAgregarTareaAProyecto(nombreProyecto, nuevaTarea);
+            NavigationManager.NavigateTo($"/gestionar-proyecto/{nombreProyecto}");
+        }
+        catch (Exception ex)
+        {
+            var detalleError = ex.InnerException?.Message ?? ex.Message;
+            mensajeError = $"Error al crear la tarea: {detalleError}";
+        }
+
+    }
+}

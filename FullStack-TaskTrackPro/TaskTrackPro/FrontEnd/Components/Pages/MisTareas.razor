@@ -1,0 +1,128 @@
+@page "/mis-tareas"
+@using Dtos
+@using Servicios
+@inject ServicioUsuario UsuarioService
+@inject ServicioProyecto ProyectoServicio
+
+<h3>Mis Tareas por Proyecto</h3>
+
+@if (!string.IsNullOrEmpty(mensajeExito))
+{
+    <div class="alert alert-success">@mensajeExito</div>
+}
+@if (!string.IsNullOrEmpty(mensajeError))
+    {
+     <div class="alert alert-danger">@mensajeError</div> 
+ }
+@if (UsuarioService.UsuarioLogueado == null)
+{
+    <p>No hay usuario logueado.</p>
+}
+else if (!proyectosUsuario.Any())
+{
+    <p>No tenés proyectos asignados.</p>
+}
+else
+{
+    @foreach (var proyecto in proyectosUsuario)
+    {
+        <div class="mb-4">
+            <h5>@proyecto.NombreProyecto</h5>
+
+            @if (!tareasPorProyecto[proyecto.NombreProyecto].Any())
+            {
+                <p class="text-muted">Este proyecto no tiene tareas asignadas.</p>
+            }
+            else
+            {
+                <table class="table table-sm table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Título</th>
+                            <th>Descripción</th>
+                            <th>Realizada</th>
+                            <th>Fecha Ejecución</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var tarea in tareasPorProyecto[proyecto.NombreProyecto])
+                    {
+                        <tr>
+                            <td>@tarea.Titulo</td>
+                            <td>@tarea.Descripcion</td>
+                            <td>
+                                <input type="checkbox" @bind="tarea.Realizada" />
+                            </td>
+                            <td>
+                                <input type="date" @bind="tarea.FechaEjecucion" 
+                                       class="form-control form-control-sm" />
+                            </td>
+                            <td>
+                                <button class="btn btn-success btn-sm"
+                                        @onclick="() => Confirmar(tarea, proyecto.NombreProyecto)">
+                                    Confirmar
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<ProyectoDto> proyectosUsuario = new();
+    private Dictionary<string, List<TareaDto>> tareasPorProyecto = new();
+    private string mensajeExito;
+    private string mensajeError;
+
+    protected override void OnInitialized()
+    {
+        if (UsuarioService.UsuarioLogueado == null) return;
+
+        proyectosUsuario = UsuarioService.ObtenerProyectosDeUsuarioLogueado();
+        foreach (var p in proyectosUsuario)
+            tareasPorProyecto[p.NombreProyecto] = 
+               ProyectoServicio.TraerTareasDeProyecto(p.NombreProyecto)
+                               .Where(t => !t.Realizada)  
+                               .ToList();
+    }
+
+    private void Confirmar(TareaDto tarea, string nombreProyecto)
+    {
+        mensajeExito = null;
+        mensajeError  = null;
+        if (!tarea.Realizada || tarea.FechaEjecucion == null) 
+            return;
+
+        try {
+            ProyectoServicio
+                .MarcarTareaDeProyectoComoRealizada(
+                    tarea, 
+                    nombreProyecto, 
+                    tarea.FechaEjecucion.Value
+                );
+
+            tareasPorProyecto[nombreProyecto] = 
+                ProyectoServicio
+                    .TraerTareasDeProyecto(nombreProyecto)
+                    .Where(t => !t.Realizada)
+                    .ToList();
+
+            mensajeExito = 
+                $"La tarea «{tarea.Titulo}» se marcó como realizada el " +
+                $"{tarea.FechaEjecucion:dd/MM/yyyy}.";
+                 }
+            catch (ArgumentException ex)
+             {
+                          mensajeError = ex.Message; 
+             }
+
+        StateHasChanged();
+    }
+}
+
+

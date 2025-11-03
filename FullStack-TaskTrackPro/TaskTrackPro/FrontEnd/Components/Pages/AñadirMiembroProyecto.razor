@@ -1,0 +1,87 @@
+@page "/añadir-miembro-proyecto/{nombreProyecto}"
+@using Dtos
+@using Servicios
+@inject ServicioProyecto ProyectoServicio
+@inject ServicioUsuario UsuarioService
+@inject NavigationManager NavigationManager
+
+<h3>Añadir Miembro al Proyecto</h3>
+
+@if (!string.IsNullOrEmpty(mensajeError))
+{
+  <div class="alert alert-danger">@mensajeError</div>
+}
+@if (añadidoExitoso)
+{
+  <div class="alert alert-success">Miembro añadido correctamente.</div>
+}
+
+<ul class="list-group mb-3">
+  @foreach (var u in disponibles)
+  {
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <div>
+        <strong>@u.Nombre</strong><br />
+        <small>@u.Email</small>
+      </div>
+      <button class="btn btn-sm btn-primary"
+              @onclick="() => OnAgregarMiembro(u)">
+        Añadir
+      </button>
+    </li>
+  }
+  @if (!disponibles.Any())
+  {
+    <li class="list-group-item"><em>No hay usuarios disponibles.</em></li>
+  }
+</ul>
+
+<button class="btn btn-secondary" @onclick="Volver">
+  ← Volver al Proyecto
+</button>
+
+@code {
+  [Parameter] public string nombreProyecto { get; set; } = "";
+
+  private List<UsuarioDto> disponibles = new();
+  private ProyectoDto proyecto;
+  private bool añadidoExitoso;
+  private string mensajeError = "";
+
+  protected override void OnInitialized()
+  {
+  
+    proyecto = ProyectoServicio.TraerProyectoPorNombre(nombreProyecto);
+    
+    
+    disponibles = ProyectoServicio.TraerUsuariosSinElProyecto(proyecto).Where(uDto => 
+        UsuarioService.UsuarioTieneRolMiembro(uDto.Email)).ToList();;
+
+  }
+
+  private async Task OnAgregarMiembro(UsuarioDto u)
+  {
+    mensajeError = "";
+    añadidoExitoso = false;
+    
+    try
+    {
+      ProyectoServicio.AgregarMiembroAProyecto(nombreProyecto, u.Email);
+      
+      proyecto.MiembrosProyecto.Add(u);
+      disponibles.RemoveAll(x => x.Email == u.Email);
+      await Task.Delay(1500);
+      añadidoExitoso = true;
+      NavigationManager.NavigateTo($"/gestionar-proyecto/{nombreProyecto}");
+    }
+    catch (ArgumentException ex)
+    {
+      mensajeError = ex.Message;
+    }
+  }
+
+  private void Volver()
+  {
+    NavigationManager.NavigateTo($"/gestionar-proyecto/{nombreProyecto}");
+  }
+}
